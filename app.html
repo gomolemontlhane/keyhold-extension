@@ -93,6 +93,22 @@
         padding: 7px 14px;
         color: var(--ink);
       }
+      button svg {
+        width: 1em;
+        height: 1em;
+        stroke-width: 2;
+      }
+      .button-icon {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .icon-only {
+        display: inline-grid;
+        place-items: center;
+        min-width: 32px;
+        padding: 7px;
+      }
       button.pri {
         background: var(--acc);
         border-color: var(--acc);
@@ -320,6 +336,14 @@
       .dh h2 {
         margin: 0;
       }
+      .dialog-listing-nav {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .dialog-listing-nav button {
+        font-size: 18px;
+      }
       .dh button {
         border: 0;
         font-size: 24px;
@@ -460,11 +484,12 @@
         type="search"
         placeholder="Search"
         aria-label="Search"
-      /><button class="pri" id="add">Add</button>
+      /><button class="pri button-icon" id="add"><i data-lucide="plus"></i>Add</button>
     </header>
     <main></main>
     <dialog id="dlg"><div id="dc"></div></dialog>
     <script src="parse.js"></script>
+    <script src="lucide.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

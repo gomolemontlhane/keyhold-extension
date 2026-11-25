@@ -9,6 +9,7 @@ const STORAGE_KEY = 'p24crm';
 // A tiny shortcut for document.querySelector — saves typing "$('#dlg')"
 // instead of "document.querySelector('#dlg')" everywhere.
 const $ = selector => document.querySelector(selector);
+const refreshIcons = () => window.lucide?.createIcons({ attrs: { 'aria-hidden': 'true' } });
 
 // Generates a short random string (e.g. "k3f9a2b") to use as a unique ID
 // for new records. Math.random() gives a decimal like 0.1234..., .toString(36)
@@ -214,6 +215,7 @@ function render() {
   } else {
     renderContacts(main, filter);
   }
+  refreshIcons();
 }
 
 // Draw the listing cards (or an empty-state message).
@@ -315,6 +317,7 @@ const dialog = $('#dlg');
 // Replace the dialog's body with new HTML and open it if it isn't already.
 const openDialog = html => {
   $('#dc').innerHTML = html;
+  refreshIcons();
   if (!dialog.open) dialog.showModal(); // showModal() = modal + backdrop
 };
 
@@ -462,6 +465,18 @@ function closeDialog() {
   if (!restorePreviousDialog()) dialog.close();
 }
 
+// Prefer the order currently displayed in the listing cards (including sort
+// and search); fall back to all stored listings when opening from Contacts.
+function listingNavigation(currentId) {
+  const cardIds = [...document.querySelectorAll('main .card[data-id]')].map(card => card.dataset.id);
+  const ids = cardIds.includes(currentId) ? cardIds : db.listings.map(listing => listing.id);
+  const index = ids.indexOf(currentId);
+  return {
+    previous: index > 0 ? ids[index - 1] : null,
+    next: index >= 0 && index < ids.length - 1 ? ids[index + 1] : null,
+  };
+}
+
 // ─── Action handlers ─────────────────────────────────────────────────────
 // One object holding every user action. When the user clicks something with
 // data-act="foo", we call actions.foo(element.dataset). This keeps all click
@@ -479,12 +494,13 @@ const actions = {
     if (!listing) return;
     if (d.returnContext === 'contact' && context?.t === 'c') {
       dialogHistory.push({ ...context });
-    } else {
+    } else if (!d.navigation) {
       dialogHistory = [];
     }
     context = { t: 'l', id: d.id };
+    const navigation = listingNavigation(listing.id);
     openDialog(`
-      <div class=dh><h2>${formatPrice(listing.price)}</h2><button data-act=x aria-label=Close>×</button></div>
+      <div class=dh><div class=dialog-listing-nav><button data-act=prevL ${navigation.previous ? '' : 'disabled'} aria-label="Previous listing">←</button><h2>${formatPrice(listing.price)}</h2><button data-act=nextL ${navigation.next ? '' : 'disabled'} aria-label="Next listing">→</button></div><button data-act=x aria-label=Close>×</button></div>
       ${listing.img ? `<img class=hero src="${escapeHtml(listing.img)}" alt="">` : ''}
       <p><b>${escapeHtml(listing.title)}</b><br>${
         escapeHtml([listing.address, listing.suburb].filter(Boolean).join(', '))
@@ -499,6 +515,16 @@ const actions = {
       <div class=ar><button class=dng data-act=delL>Remove listing</button></div>
     `);
     fillDialog();
+  },
+
+  prevL: () => {
+    const previous = context?.t === 'l' ? listingNavigation(context.id).previous : null;
+    if (previous) actions.openL({ id: previous, navigation: 'true' });
+  },
+
+  nextL: () => {
+    const next = context?.t === 'l' ? listingNavigation(context.id).next : null;
+    if (next) actions.openL({ id: next, navigation: 'true' });
   },
 
   // Edit a listing directly from its card.
@@ -781,6 +807,13 @@ document.addEventListener('keydown', e => {
   if (!row || e.target !== row || !['Enter', ' '].includes(e.key)) return;
   e.preventDefault();
   actions.openL(row.dataset);
+});
+
+// Navigate between listing popups with the keyboard's left/right arrows.
+document.addEventListener('keydown', e => {
+  if (!dialog.open || context?.t !== 'l' || e.altKey || e.ctrlKey || e.metaKey) return;
+  if (e.key === 'ArrowLeft') { e.preventDefault(); actions.prevL(); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); actions.nextL(); }
 });
 
 // Format currency and phone fields as the user types or pastes a value.
